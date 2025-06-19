@@ -1,7 +1,0 @@
-{
-    "input_dim": 68,
-    "hidden_dim1": 128,
-    "hidden_dim2": 32,
-    "output_dim": 2,
-    "goid_input_dim": 4096
-}
