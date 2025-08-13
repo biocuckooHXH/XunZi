@@ -69,8 +69,12 @@ python demo_xunzi_r.py --query_file demo_data/sample_gene_disease.csv
 
 ```text
 [✔] Gene: CHEK2, Disease: Parkinson's disease
-↪ Mechanism: CHEK2 modulates mitochondrial apoptosis and DNA damage response.
-↪ Score: 0.94
+↪ Mechanism: CHEK2, a tumor suppressor gene, plays a role in maintaining genomic stability by regulating cell cycle checkpoints and DNA repair mechanisms. Variants in CHEK2 may contribute to an increased risk of Parkinson's disease by affecting these processes, potentially leading to oxidative stress and mitochondrial dysfunction, which are critical factors in the disease's pathogenesis. 
+
+Impacted Genes: TP53, BRCA1, BRCA2, LRRK2
+
+Impacted Pathways: Cell cycle regulation, DNA repair, Oxidative stress response, Mitochondrial function.
+↪ Score: 0.98
 ```
 
 ### ⏱️ Runtime (per query)
