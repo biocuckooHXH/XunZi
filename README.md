@@ -21,7 +21,9 @@ XunZi/
 │   └── XunZi-L/              # Scripts and configs for multi-omics learning
 ├── demo_data/                # Example input files
 ├── demo_xunzi_r.py           # Quickstart demo for XunZi-R
-├── xunzi_r_infer.py          # Batch inference script
+├── demo_xunzi_l.py           # Quickstart demo for XunZi-L
+├── demo_xunzi.py             # Quickstart demo for XunZi
+├── xunzi_infer.py          # Batch inference script
 ├── requirements.txt
 └── README.md
 ```
