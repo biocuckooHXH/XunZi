@@ -23,7 +23,7 @@ XunZi/
 ├── demo_xunzi_r.py           # Quickstart demo for XunZi-R
 ├── demo_xunzi_l.py           # Quickstart demo for XunZi-L
 ├── demo_xunzi.py             # Quickstart demo for XunZi
-├── xunzi_infer.py          # Batch inference script
+├── xunzi_infer.py            # Batch inference script
 ├── requirements.txt
 └── README.md
 ```
