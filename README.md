@@ -116,7 +116,6 @@ TP53,NSCLC
 ```bash
 python demo_xunzi.py \
   --graph_data ./demo_data/graph_data.pth \
-  --l_checkpoint ./demo_data/finetuned_model.pth \
   --model_id H2dddhxh/XunZi-R \
   --top_k 20 \
   --output_csv xunzi_results.csv
