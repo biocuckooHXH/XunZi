@@ -64,7 +64,11 @@ Estimated setup time: ~5 minutes
 ### ▶️ Run the demo:
 
 ```bash
-python demo_xunzi_r.py --query_file demo_data/sample_gene_disease.csv
+python demo_xunzi.py \
+  --graph_data ./demo_data/graph_data.pth \
+  --model_id H2dddhxh/XunZi-R \
+  --top_k 20 \
+  --output_csv xunzi_results.csv
 ```
 
 ### 📤 Expected Output
