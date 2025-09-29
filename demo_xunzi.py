@@ -136,7 +136,7 @@ def parse_args():
     p.add_argument("--l_checkpoint", type=str, required=True, help="Path to XunZi-L checkpoint .pth")
 
     # Allow None so we can infer from checkpoint if not provided
-    p.add_argument("--input_dim", type=int, default=None, help="Gene feature dim used by GCN (will infer from ckpt if None)")
+    p.add_argument("--input_dim", type=int, default=112, help="Gene feature dim used by GCN (will infer from ckpt if None)")
     p.add_argument("--hidden_dim1", type=int, default=128)
     p.add_argument("--hidden_dim2", type=int, default=32)
     p.add_argument("--goid_input_dim", type=int, default=None, help="GO-node raw feature dim (will infer from ckpt if None)")
@@ -303,3 +303,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
