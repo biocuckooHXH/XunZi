@@ -17,13 +17,12 @@ XunZi integrates >600 TB of multi-omics data and 24 million biomedical publicati
 ```
 XunZi/
 ├── models/
-│   ├── XunZi-R/              # Scripts and configs for reasoning module
-│   └── XunZi-L/              # Scripts and configs for multi-omics learning
-├── demo_data/                # Example input files
-├── demo_xunzi_r.py           # Quickstart demo for XunZi-R
-├── demo_xunzi_l.py           # Quickstart demo for XunZi-L
-├── demo_xunzi.py             # Quickstart demo for XunZi
-├── xunzi_infer.py            # Batch inference script
+│   ├── XunZi-R/              # Reasoning module (adapter + configs)
+│   └── XunZi-L/              # Multi-omics learning module
+├── demo_data/                # Example input files (need manual download for graph_data.pth)
+├── demo_xunzi_r.py           # Quickstart demo for XunZi-R only
+├── demo_xunzi_l.py           # Quickstart demo for XunZi-L only
+├── demo_xunzi.py             # End-to-end demo (L + R)
 ├── requirements.txt
 └── README.md
 ```
@@ -35,7 +34,7 @@ XunZi/
 | Component     | Requirement                              |
 |---------------|-------------------------------------------|
 | Language      | Python 3.8+                               |
-| Dependencies  | `transformers`, `torch`, `pandas`, etc.   |
+| Dependencies  | `transformers`, `torch`, `torch-geometric`, `pandas` |
 | OS            | Ubuntu 20.04 / macOS 13+ / Windows (WSL)  |
 | Hardware      | GPU (>=24GB VRAM) recommended for XunZi-R |
 | Tested on     | RTX 3090 / A100 / CPU (demo only)         |
@@ -55,39 +54,20 @@ conda activate xunzi
 pip install -r requirements.txt
 ```
 
-Estimated setup time: ~5 minutes
-
 ---
 
-## 🚀 3. Demo: XunZi-R Mechanistic Reasoning
+## 📥 3. Prepare Demo Data
 
-### ▶️ Run the demo:
+The demo requires a preprocessed graph file `graph_data.pth`.  
+Due to size limits, this file is not included in the repository.  
+
+👉 Please download it from HuggingFace and place it into the `demo_data/` folder:  
+[HuggingFace Dataset: H2dddhxh/XunZi](https://huggingface.co/datasets/H2dddhxh/XunZi/tree/main)
 
 ```bash
-python demo_xunzi.py \
-  --graph_data ./demo_data/graph_data.pth \
-  --model_id H2dddhxh/XunZi-R \
-  --top_k 20 \
-  --output_csv xunzi_results.csv
+# Example (requires huggingface-cli)
+huggingface-cli download H2dddhxh/XunZi graph_data.pth --local-dir ./demo_data
 ```
-
-### 📤 Expected Output
-
-```text
-[✔] Gene: CHEK2, Disease: Parkinson's disease
-↪ Mechanism: CHEK2, a tumor suppressor gene, plays a role in maintaining genomic stability by regulating cell cycle checkpoints and DNA repair mechanisms. Variants in CHEK2 may contribute to an increased risk of Parkinson's disease by affecting these processes, potentially leading to oxidative stress and mitochondrial dysfunction, which are critical factors in the disease's pathogenesis. 
-
-Impacted Genes: TP53, BRCA1, BRCA2, LRRK2
-
-Impacted Pathways: Cell cycle regulation, DNA repair, Oxidative stress response, Mitochondrial function.
-↪ Score: 0.98
-```
-
-### ⏱️ Runtime (per query)
-| Hardware | Time |
-|----------|------|
-| CPU      | ~20s |
-| GPU (3090/A100) | ~5s |
 
 ---
 
@@ -95,40 +75,59 @@ Impacted Pathways: Cell cycle regulation, DNA repair, Oxidative stress response,
 
 The mechanistic reasoning engine is built on top of the **BioMistral-7B** series and is hosted at HuggingFace:
 
-| Model        | Description                             | Link |
-|--------------|-----------------------------------------|------|
-| XunZi-R-BioPre | Pretraining on 24M biomedical abstracts | [HuggingFace 🔗](https://huggingface.co/H2dddhxh/XunZi-R-BioPre) |
-| XunZi-R       | Fine-tuned for mechanistic reasoning     | [HuggingFace 🔗](https://huggingface.co/H2dddhxh/XunZi-R) |
+| Model          | Description                               | Link |
+|----------------|-------------------------------------------|------|
+| XunZi-R-BioPre | Pretrained on 24M biomedical abstracts    | [HuggingFace 🔗](https://huggingface.co/H2dddhxh/XunZi-R-BioPre) |
+| XunZi-R        | Fine-tuned for mechanistic reasoning      | [HuggingFace 🔗](https://huggingface.co/H2dddhxh/XunZi-R) |
 
-> These models power logical reasoning across 21,000 genes and 5,800 diseases.
+⚠️ **Important:**  
+To use **XunZi-R**, you must also download its base model **XunZi-R-BioPre**.  
+After downloading, edit `models/XunZi-R/adapter_config.json` and update the field:
+
+```json
+"base_model_name_or_path": "/path/to/XunZi-R-BioPre"
+```
+
+This ensures the LoRA adapter (`XunZi-R`) can correctly load the pretrained weights.
 
 ---
 
-## 📚 5. Instructions for Use (Custom Inference)
+## 🚀 5. Run the End-to-End Demo
 
-### Input Format
+Make sure that:
+1. `graph_data.pth` is placed in `./demo_data/`
+2. `adapter_config.json` in `models/XunZi-R/` has the correct `base_model_name_or_path` pointing to your downloaded `XunZi-R-BioPre`
 
-```csv
-gene,disease
-CHEK2,Parkinson's disease
-TP53,NSCLC
-...
-```
-
-### Run:
+Then run:
 
 ```bash
 python demo_xunzi.py \
   --graph_data ./demo_data/graph_data.pth \
+  --l_checkpoint ./demo_data/finetuned_model.pth \
   --model_id H2dddhxh/XunZi-R \
-  --top_k 20 \
-  --output_csv xunzi_results.csv
-
+  --top_k 50 \
+  --output_csv xunzi_end2end.csv
 ```
 
 ---
 
-## ♻️ 6. (Optional) Reproduce Figures
+## 📤 6. Expected Output
+
+The output file `xunzi_end2end.csv` will contain both:
+- **XunZi-L scores** (disease relevance of candidate genes)
+- **XunZi-R generated hypotheses** (mechanism-guided reasoning)
+
+Preview in terminal:
+
+```text
+✅ XunZi end-to-end finished. Saved to xunzi_end2end.csv
+ - GeneID: CHEK2, Score: 0.9821
+   Hypothesis: CHEK2 may regulate LRRK2 activity through DNA damage response pathways and checkpoint kinases…
+```
+
+---
+
+## ♻️ 7. (Optional) Reproduce Figures
 
 To reproduce results in the manuscript:
 
@@ -138,7 +137,7 @@ bash reproduce_figures.sh
 
 ---
 
-## 🔐 7. License
+## 🔐 8. License
 
 This project is licensed under the MIT License.  
 See `LICENSE` for full terms.
