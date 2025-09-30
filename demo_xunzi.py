@@ -6,8 +6,9 @@ Workflow
 --------
 1) Load graph_data + L checkpoint; compute XunZi_L_score for gene nodes.
 2) Select top-K genes (or score >= threshold).
-3) Build prompts and query XunZi-R (HF Hub or local).
-4) Save a merged CSV with scores and hypotheses.
+3) (NEW) Map GeneID -> GeneName (if provided) and build prompts using GeneName.
+4) Query XunZi-R (HF Hub or local) with gene-level questions.
+5) Save a merged CSV with scores and hypotheses.
 
 Examples
 --------
@@ -79,6 +80,43 @@ def validate_graph_data(g, input_dim: int, goid_input_dim: int):
     assert (~mask).any().item(), "mask has no False (no GO nodes)"
 
 
+def load_id_map(path: str) -> pd.DataFrame:
+    """
+    Load a GeneID -> GeneName mapping table from CSV/XLSX.
+    Accepted column aliases:
+      GeneID   : ["GeneID", "geneid", "ID", "Gene Id"]
+      GeneName : ["GeneName", "Gene Name", "Genesymb", "GeneSymbol", "Symbol"]
+    Returns: DataFrame with columns exactly ["GeneID", "GeneName"] (both str).
+    """
+    ext = os.path.splitext(path)[1].lower()
+    if ext in [".xlsx", ".xls"]:
+        df = pd.read_excel(path)
+    else:
+        df = pd.read_csv(path)
+
+    # normalize headers (case-insensitive)
+    header_map = {c.lower().strip(): c for c in df.columns}
+
+    def pick(cands):
+        for k in cands:
+            if k.lower() in header_map:
+                return header_map[k.lower()]
+        return None
+
+    id_col = pick(["GeneID", "geneid", "ID", "Gene Id"])
+    name_col = pick(["GeneName", "Gene Name", "Genesymb", "GeneSymbol", "Symbol"])
+
+    if id_col is None or name_col is None:
+        raise ValueError("id_map_file must contain columns for GeneID and GeneName (or accepted aliases).")
+
+    out = df[[id_col, name_col]].copy()
+    out.columns = ["GeneID", "GeneName"]
+    out["GeneID"] = out["GeneID"].astype(str).str.strip()
+    out["GeneName"] = out["GeneName"].astype(str).str.strip()
+    out = out.drop_duplicates(subset=["GeneID"], keep="first")
+    return out
+
+
 # -------- XunZi-L model --------
 class GCNWithAggregator_Resnet(nn.Module):
     def __init__(self, input_dim, hidden_dim1, hidden_dim2, output_dim,
@@ -135,11 +173,13 @@ def parse_args():
     p.add_argument("--graph_data", type=str, required=True, help="Path to graph_data .pth")
     p.add_argument("--l_checkpoint", type=str, required=True, help="Path to XunZi-L checkpoint .pth")
 
-    # Allow None so we can infer from checkpoint if not provided
-    p.add_argument("--input_dim", type=int, default=112, help="Gene feature dim used by GCN (will infer from ckpt if None)")
+    # dims
+    p.add_argument("--input_dim", type=int, default=112,
+                   help="Gene feature dim used by GCN (112 by default; will be inferred from ckpt if available)")
     p.add_argument("--hidden_dim1", type=int, default=128)
     p.add_argument("--hidden_dim2", type=int, default=32)
-    p.add_argument("--goid_input_dim", type=int, default=None, help="GO-node raw feature dim (will infer from ckpt if None)")
+    p.add_argument("--goid_input_dim", type=int, default=None,
+                   help="GO-node raw feature dim (will infer from ckpt if None)")
     p.add_argument("--dropout", type=float, default=0.2)
 
     # Selection
@@ -167,19 +207,28 @@ def parse_args():
     p.add_argument("--assistant_prefix", type=str, default="Hypothesis:")
     p.add_argument("--disease_name", type=str, default="Parkinson's disease")
 
+    # Mapping file (NEW): default to a bundled path; skip if file doesn't exist
+    p.add_argument("--id_map_file", type=str, default="./demo_data/gene_map.csv",
+                   help="CSV/XLSX with columns: GeneID,GeneName (case-insensitive aliases supported). "
+                        "If the file does not exist, mapping is skipped.")
+
     # Output
     p.add_argument("--output_csv", type=str, default="xunzi_end2end.csv")
 
     return p.parse_args()
 
 
-def build_gene_prompts(gene_ids, disease_name, system_prompt, assistant_prefix):
+def build_gene_prompts(gene_names, disease_name, system_prompt, assistant_prefix):
+    """
+    Build prompts using GeneName (fallback to GeneID if name missing).
+    """
     prompts = []
-    for gid in gene_ids:
+    for g in gene_names:
         prompt = (
             f"{system_prompt}\n\n"
-            f"Query: Candidate gene: {gid} in {disease_name}. "
-            f"Summarize the most plausible mechanism and propose testable experiments.\n"
+            f"Query: Is gene {g} involved in {disease_name} in a functional way? "
+            f"If yes, summarize the most plausible mechanism (pathways/regulators) "
+            f"and propose 2-3 validation experiments.\n"
             f"{assistant_prefix} "
         )
         prompts.append(prompt)
@@ -190,9 +239,7 @@ def build_gene_prompts(gene_ids, disease_name, system_prompt, assistant_prefix):
 def run_xunzi_l(args, device):
     # Infer dims from checkpoint if not provided
     inferred_in_dim, inferred_goid_in = infer_dims_from_ckpt(args.l_checkpoint)
-    if args.input_dim is None:
-        if inferred_in_dim is None:
-            raise ValueError("Cannot infer input_dim from checkpoint; please pass --input_dim explicitly.")
+    if args.input_dim is None and inferred_in_dim is not None:
         args.input_dim = inferred_in_dim
         print(f"[XunZi-L] Inferred input_dim from ckpt: {args.input_dim}")
     if args.goid_input_dim is None:
@@ -272,6 +319,8 @@ def main():
 
     # Step 1: XunZi-L scoring
     l_df = run_xunzi_l(args, device)
+
+    # Filter
     if args.score_threshold is not None:
         sel_df = l_df[l_df["XunZi_L_score"] >= args.score_threshold].copy()
     else:
@@ -279,9 +328,29 @@ def main():
 
     print(f"[XunZi] Selected {len(sel_df)} genes for reasoning.")
 
-    # Step 2: build prompts for XunZi-R
+    # Step 1.5: (NEW) Merge GeneID -> GeneName mapping if available
+    sel_df["GeneID"] = sel_df["GeneID"].astype(str)
+
+    if args.id_map_file and os.path.isfile(args.id_map_file):
+        try:
+            map_df = load_id_map(args.id_map_file)
+            sel_df = sel_df.merge(map_df, on="GeneID", how="left")
+            print(f"[XunZi] Mapped GeneID->GeneName using: {args.id_map_file}")
+        except Exception as e:
+            print(f"[XunZi] Warning: failed to load id_map_file '{args.id_map_file}': {e}")
+            print("[XunZi] Proceeding without GeneName mapping.")
+    else:
+        if args.id_map_file:
+            print(f"[XunZi] Mapping file not found: {args.id_map_file}. Proceeding without mapping.")
+        else:
+            print("[XunZi] No mapping file provided. Proceeding without mapping.")
+
+    # Build a display column for prompts: prefer GeneName else fallback to GeneID
+    sel_df["DisplayName"] = sel_df["GeneName"].fillna(sel_df["GeneID"]) if "GeneName" in sel_df.columns else sel_df["GeneID"]
+
+    # Step 2: build prompts for XunZi-R (use GeneName when available)
     prompts = build_gene_prompts(
-        sel_df["GeneID"].astype(str).tolist(),
+        sel_df["DisplayName"].astype(str).tolist(),
         disease_name=args.disease_name,
         system_prompt=args.system_prompt,
         assistant_prefix=args.assistant_prefix
@@ -292,15 +361,19 @@ def main():
 
     # Step 4: merge and save
     sel_df["XunZi_R_hypothesis"] = responses
+    # friendly column order
+    ordered = [c for c in ["GeneName", "GeneID", "XunZi_L_score", "XunZi_R_hypothesis"] if c in sel_df.columns]
+    sel_df = sel_df[ordered + [c for c in sel_df.columns if c not in ordered]]
+
     sel_df.to_csv(args.output_csv, index=False)
 
     print(f"✅ XunZi end-to-end finished. Saved to {args.output_csv}")
     print("   Preview:")
     for _, row in sel_df.head(3).iterrows():
-        print(f" - GeneID: {row['GeneID']}, Score: {row['XunZi_L_score']:.4f}")
+        gdisp = row["GeneName"] if "GeneName" in row and pd.notna(row["GeneName"]) else row["GeneID"]
+        print(f" - Gene: {gdisp}, Score: {row['XunZi_L_score']:.4f}")
         print(f"   Hypothesis: {row['XunZi_R_hypothesis'][:120]}…")
 
 
 if __name__ == "__main__":
     main()
-
