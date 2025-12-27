@@ -28,26 +28,23 @@ XunZi/
 │   │   └── preprocess_data.py      # Main data preprocessing pipeline
 │   ├── model/
 │   │   ├── mistral_wrapper.py      # Mistral-7B model wrapper with LoRA
-│   │   └── XunZi_modules/           # XunZi-M and XunZi-R implementations
+│   │   ├── XunZi_finetune.py       # XunZi fine-tuning implementation
+│   │   ├── XunZi_full_train.py     # Full XunZi training (M+R modules)
+│   │   └── XunZi_M_train.py        # XunZi-M multi-omics training
 │   ├── training/
-│   │   ├── trainer.py               # Distributed training orchestration
-│   │   └── train.py                 # Main training script
-│   └── evaluation/
-│       ├── evaluator.py            # Comprehensive evaluation framework
-│       ├── metrics.py               # Biomedical-specific metrics
-│       └── inference.py             # Inference engine for deployment
-├── scripts/
-│   ├── preprocess_data.py          # Data preparation scripts
-│   ├── train.py                     # Training launcher
-│   └── evaluate/
-│       ├── evaluate_model.py       # Model evaluation
-│       └── benchmark.py             # Performance benchmarking
-├── configs/
-│   ├── training_config.yaml        # Training hyperparameters
-│   └── eval_config.yaml            # Evaluation settings
+│   │   ├── trainer.py              # Distributed training orchestration
+│   │   └── train.py                # Main training scriptr deployment
+├── plots/                           # Draw the figures
+├── dataset/                         # Supplementary data
+├── evaluation/
+│   ├── CTD_for_Disgenet_metric.py  # CTD database evaluation metrics
+│   ├── Disgenet_for_CTD_metric.py  # DisGeNET cross-validation metrics
+│   ├── XunZi_mechanism_BLEU_BertScore.py    # BLEU & BERTScore for mechanism generation
+│   ├── XunZi_mechanism_BLEU_Rouge_single_csv.py  # BLEU & ROUGE metrics for single outputs
+│   └── XunZi_mechanism_Bertscore_single_csv.py   # BERTScore for single outputs
 ├── models/
-│   ├── XunZi-R/                    # Reasoning module checkpoints
-│   └── XunZi-M/                    # Multi-omics module checkpoints
+│   ├── XunZi-R                     # Reasoning module checkpoints
+│   └── XunZi-L/                    # Multi-omics module checkpoints
 ├── demo_data/                       # Example datasets
 ├── demo_xunzi.py                    # End-to-end demonstration
 ├── demo_xunzi_r.py                  # XunZi-R standalone demo
@@ -123,38 +120,85 @@ python demo_xunzi.py \
   --output_csv results/xunzi_predictions.csv
 ```
 
-## 🔧 Full Pipeline
+## 🔧 Training Pipeline
 
-### Data Preprocessing
+### Stage 1: Continual Pre-training on Biomedical Literature
 
-Process raw biomedical literature (240,000 articles with gene-disease annotations):
+Pre-train on 240,000 PubMed abstracts to adapt Mistral-7B to biomedical domain:
 ```bash
-python scripts/preprocess_data.py \
-  --input-path /path/to/raw/articles.json \
-  --output-dir data/processed \
+# Preprocess PubMed abstracts for continual pre-training
+python scr/preprocess_data.py \
+  --input-path /path/to/pubmed_abstracts.json \
+  --output-dir data/cpt_processed \
   --tokenizer mistralai/Mistral-7B-Instruct-v0.1 \
   --task cpt \
   --max-length 2048 \
   --val-ratio 0.05
+
+# Run continual pre-training
+python scr/train.py \
+  --config configs/cpt_config.yaml \
+  --use-wandb
 ```
 
-Expected input format:
+Input format for pre-training (PubMed abstracts):
 ```json
 {
   "pmid": "12345678",
-  "title": "Article title",
-  "abstract": "Article abstract",
-  "genes": ["BRCA1", "TP53"],
-  "diseases": ["breast cancer"],
-  "associations": [
-    {
-      "gene": "BRCA1",
-      "disease": "breast cancer",
-      "relation": "associated_with",
-      "confidence": "high"
-    }
-  ]
+  "title": "Gene expression patterns in breast cancer",
+  "abstract": "Full text of the abstract..."
 }
+```
+
+### Stage 2: Fine-tuning for Mechanistic Reasoning
+
+Fine-tune on curated gene-disease QA pairs with mechanistic explanations:
+```bash
+# Prepare instruction-tuning dataset
+python scr/preprocess_data.py \
+  --input-path /path/to/gene_disease_qa.json \
+  --output-dir data/ft_processed \
+  --tokenizer mistralai/Mistral-7B-Instruct-v0.1 \
+  --task it \
+  --max-length 2048
+
+# Fine-tune for mechanistic reasoning
+python scr/train.py \
+  --config configs/finetune_config.yaml \
+  --checkpoint outputs/cpt_model/best_model \
+  --use-wandb
+```
+
+Input format for fine-tuning (QA pairs):
+```json
+{
+  "question": "Is Gene CXCL10 (CXCL10) involved in disease Cystitides, Interstitial in a functional way?",
+  "answer": "Yes. CXCL10, a chemokine, plays a significant role in Cystitis and Interstitial Cystitis by attracting Th1 cells, mast cells, NK cells, and NKT cells to the site of inflammation...\nImpacted Genes: CXCL9, CXCL11, IFN-gamma...\nImpacted Pathways: Chemokine signaling pathway, Th1 cell signaling pathway..."
+}
+```
+
+### Stage 3: Multi-Omics Integration (XunZi-M)
+
+Train graph neural networks on multi-omics data:
+```bash
+# Train XunZi-M module
+python src/model/XunZi_M_train.py \
+  --graph_data ./demo_data/graph_data.pth \
+  --label_data ./demo_data/disease_labels.csv \
+  --epochs 100 \
+  --k_folds 5
+```
+
+### Stage 4: End-to-End Integration
+
+Combine XunZi-M and XunZi-R for final predictions:
+```bash
+# Full XunZi training (M+R integration)
+python src/model/XunZi_full_train.py \
+  --graph_data ./demo_data/graph_data.pth \
+  --reasoning_model outputs/ft_model/best_model \
+  --llm_data ./demo_data/llm_predictions.csv \
+  --output_dir outputs/xunzi_full
 ```
 
 
