@@ -1,143 +1,171 @@
 # 🧠 XunZi: An AI Biologist for Mechanism-Guided Therapeutic Target Discovery
 
-## 🔍 Introduction
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?logo=PyTorch&logoColor=white)](https://pytorch.org/)
 
-Holistic hypothesis generation in biomedicine remains limited by the integration of literature-derived mechanistic insights with multi-omics data. While large language models (LLMs) have advanced textual analysis, few systems unify logical reasoning and omics learning at scale.
+## 🔍 Overview
 
-Here, we introduce **XunZi**, an AI biologist composed of two synergistic modules:
-- **XunZi-L** (multi-omics learning)
-- **XunZi-R** (mechanistic reasoning)
+XunZi is an AI-driven framework that bridges mechanistic insights from biomedical literature with multi-omics data for therapeutic target discovery. It consists of two synergistic modules:
 
-XunZi integrates >600 TB of multi-omics data and 24 million biomedical publications to prioritize disease-modifying genes and generate testable mechanistic hypotheses.
+- **XunZi-M**: Multi-omics learning module integrating >600TB of biological data
+- **XunZi-R**: Mechanistic reasoning engine based on Mistral-7B, trained on 24M biomedical publications
 
----
+## 📊 Key Features
 
-## 🧩 Repository Structure
+- **Continual Pre-training**: Custom biomedical language model trained on 240,000+ curated publications
+- **Multi-modal Integration**: Combines graph neural networks with transformer-based reasoning
+- **Scalable Architecture**: Distributed training support with LoRA for efficient fine-tuning
+- **Comprehensive Evaluation**: Multiple metrics including perplexity, ROUGE, BLEU, and entity extraction F1
 
+## 🏗️ Repository Structure
 ```
 XunZi/
+├── src/
+│   ├── data/
+│   │   ├── dataset.py              # Dataset classes for biomedical text
+│   │   ├── preprocessor.py         # Text preprocessing for gene-disease annotations
+│   │   └── preprocess_data.py      # Main data preprocessing pipeline
+│   ├── model/
+│   │   ├── mistral_wrapper.py      # Mistral-7B model wrapper with LoRA
+│   │   └── XunZi_modules/           # XunZi-M and XunZi-R implementations
+│   ├── training/
+│   │   ├── trainer.py               # Distributed training orchestration
+│   │   └── train.py                 # Main training script
+│   └── evaluation/
+│       ├── evaluator.py            # Comprehensive evaluation framework
+│       ├── metrics.py               # Biomedical-specific metrics
+│       └── inference.py             # Inference engine for deployment
+├── scripts/
+│   ├── preprocess_data.py          # Data preparation scripts
+│   ├── train.py                     # Training launcher
+│   └── evaluate/
+│       ├── evaluate_model.py       # Model evaluation
+│       └── benchmark.py             # Performance benchmarking
+├── configs/
+│   ├── training_config.yaml        # Training hyperparameters
+│   └── eval_config.yaml            # Evaluation settings
 ├── models/
-│   ├── XunZi-R/              # Reasoning module (adapter + configs)
-│   └── XunZi-L/              # Multi-omics learning module
-├── demo_data/                # Example input files (need manual download for graph_data.pth)
-├── demo_xunzi_r.py           # Quickstart demo for XunZi-R only
-├── demo_xunzi_l.py           # Quickstart demo for XunZi-L only
-├── demo_xunzi.py             # End-to-end demo (L + R)
+│   ├── XunZi-R/                    # Reasoning module checkpoints
+│   └── XunZi-M/                    # Multi-omics module checkpoints
+├── demo_data/                       # Example datasets
+├── demo_xunzi.py                    # End-to-end demonstration
+├── demo_xunzi_r.py                  # XunZi-R standalone demo
+├── demo_xunzi_l.py                  # XunZi-M standalone demo
 ├── requirements.txt
 └── README.md
 ```
 
----
+## 💻 System Requirements
 
-## 💻 1. System Requirements
+| Component | Requirement |
+|-----------|------------|
+| **Python** | 3.8+ |
+| **PyTorch** | 2.0+ |
+| **CUDA** | 11.8+ (for GPU) |
+| **RAM** | 64GB+ |
+| **GPU** | 24GB+ VRAM (RTX 3090/4090, A100) |
+| **Storage** | 100GB+ for full dataset |
 
-| Component     | Requirement                              |
-|---------------|-------------------------------------------|
-| Language      | Python 3.8+                               |
-| Dependencies  | `transformers`, `torch`, `torch-geometric`, `pandas` |
-| OS            | Ubuntu 20.04 / macOS 13+ / Windows (WSL)  |
-| Hardware      | GPU (>=24GB VRAM) recommended for XunZi-R |
-| Tested on     | RTX 3090 / A100 / CPU (demo only)         |
+## 🚀 Quick Start
 
-> ⚠️ Note: The reasoning model `XunZi-R` is based on Mistral-7B. GPU with at least 24GB VRAM is recommended for inference.
-
----
-
-## ⚙️ 2. Installation
-
+### 1. Installation
 ```bash
+# Clone repository
 git clone https://github.com/biocuckooHXH/XunZi.git
 cd XunZi
 
+# Create conda environment
 conda create -n xunzi python=3.9
 conda activate xunzi
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
----
-
-## 📥 3. Prepare Demo Data
-
-The demo requires a preprocessed graph file `graph_data.pth`.  
-Due to size limits, this file is not included in the repository.  
-
-👉 Please download it from HuggingFace and place it into the `demo_data/` folder:  
-[HuggingFace Dataset: H2dddhxh/XunZi](https://huggingface.co/datasets/H2dddhxh/XunZi/tree/main)
-
+### 2. Download Pre-trained Models
 ```bash
-# Example (requires huggingface-cli)
+# Download XunZi-R base model from HuggingFace
+huggingface-cli download H2dddhxh/XunZi-R-BioPre --local-dir ./models/XunZi-R-BioPre
+
+# Download XunZi-R adapter
+huggingface-cli download H2dddhxh/XunZi-R --local-dir ./models/XunZi-R
+
+# Download demo data
 huggingface-cli download H2dddhxh/XunZi graph_data.pth --local-dir ./demo_data
 ```
 
----
-
-## 🧠 4. XunZi-R Model Hub
-
-The mechanistic reasoning engine is built on top of the **BioMistral-7B** series and is hosted at HuggingFace:
-
-| Model          | Description                               | Link |
-|----------------|-------------------------------------------|------|
-| XunZi-R-BioPre | Pretrained on 24M biomedical abstracts    | [HuggingFace 🔗](https://huggingface.co/H2dddhxh/XunZi-R-BioPre) |
-| XunZi-R        | Fine-tuned for mechanistic reasoning      | [HuggingFace 🔗](https://huggingface.co/H2dddhxh/XunZi-R) |
-
-⚠️ **Important:**  
-To use **XunZi-R**, you must also download its base model **XunZi-R-BioPre**.  
-After downloading, edit `models/XunZi-R/adapter_config.json` and update the field:
-
-```json
-"base_model_name_or_path": "/path/to/XunZi-R-BioPre"
-```
-
-This ensures the LoRA adapter (`XunZi-R`) can correctly load the pretrained weights.
-
----
-
-## 🚀 5. Run the End-to-End Demo
-
-Make sure that:
-1. `graph_data.pth` is placed in `./demo_data/`
-2. `adapter_config.json` in `models/XunZi-R/` has the correct `base_model_name_or_path` pointing to your downloaded `XunZi-R-BioPre`
-
-Then run:
-
+### 3. Run Demo
 ```bash
+# Quick demo with pre-trained models
 python demo_xunzi.py \
   --graph_data ./demo_data/graph_data.pth \
-  --l_checkpoint ./demo_data/finetuned_model.pth \
-  --model_id H2dddhxh/XunZi-R \
-  --top_k 50 \
-  --output_csv xunzi_end2end.csv
+  --model_id ./models/XunZi-R \
+  --output_csv results/xunzi_predictions.csv
 ```
 
----
+## 🔧 Full Pipeline
 
-## 📤 6. Expected Output
+### Data Preprocessing
 
-The output file `xunzi_end2end.csv` will contain both:
-- **XunZi-L scores** (disease relevance of candidate genes)
-- **XunZi-R generated hypotheses** (mechanism-guided reasoning)
-
-Preview in terminal:
-
-```text
-✅ XunZi end-to-end finished. Saved to xunzi_end2end.csv
- - GeneID: CHEK2, Score: 0.9821
-   Hypothesis: CHEK2 may regulate LRRK2 activity through DNA damage response pathways and checkpoint kinases…
-```
-
----
-
-## ♻️ 7. (Optional) Reproduce Figures
-
-To reproduce results in the manuscript:
-
+Process raw biomedical literature (240,000 articles and gene-disease annotations):
 ```bash
-bash reproduce_figures.sh
+python scripts/preprocess_data.py \
+  --input-path /path/to/raw/articles.json \
+  --output-dir data/processed \
+  --tokenizer mistralai/Mistral-7B-Instruct-v0.1 \
+  --task cpt \
+  --max-length 2048 \
+  --val-ratio 0.05
 ```
 
----
+### Continual Pre-training
 
-## 🔐 8. License
+Train XunZi-R on biomedical corpus using LoRA:
+```bash
+python scripts/train.py \
+  --config configs/training_config.yaml \
+  --use-wandb
+```
 
-This project is licensed under the MIT License.  
-See `LICENSE` for full terms.
+
+## 🔬 XunZi Modules
+
+### XunZi-M: Multi-Omics Learning
+- Graph Convolutional Networks for gene-gene interactions
+- Integration of 600TB+ multi-omics data
+- Cross-validation with DisGeNET and CTD databases
+
+### XunZi-R: Mechanistic Reasoning
+- Fine-tuned Mistral-7B on 24M publications
+- Specialized for biomedical entity recognition
+- Generates mechanistic hypotheses for gene-disease associations
+
+
+## 📝 Citation
+
+If you use XunZi in your research, please cite:
+```bibtex
+@article{huang2024xunzi,
+  title={XunZi, a AI biologist, reveals novel disease-modifying targets},
+  author={Huang, Xinhe et al.},
+  journal={bioRxiv},
+  year={2024}
+}
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Mistral AI for the base language model
+- DisGeNET and CTD for validation databases
+- The biomedical research community for open datasets
+
+## 📧 Contact
+
+For questions and support:
+- Open an issue on GitHub
+- Email: huangxinhe@hust.edu.cn
