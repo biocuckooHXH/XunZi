@@ -67,6 +67,22 @@ XunZi/
 | **GPU** | 24GB+ VRAM (RTX 3090/4090, A100) |
 | **Storage** | 100GB+ for full dataset |
 
+## 🧠 XunZi-R Model Hub
+
+The mechanistic reasoning engine is built on top of the BioMistral-7B series and is hosted at HuggingFace:
+
+| Model | Description | Link |
+|-------|------------|------|
+| **XunZi-R-BioPre** | Pretrained on 24M biomedical abstracts | [🤗 HuggingFace](https://huggingface.co/H2dddhxh/XunZi-R-BioPre) |
+| **XunZi-R** | Fine-tuned for mechanistic reasoning | [🤗 HuggingFace](https://huggingface.co/H2dddhxh/XunZi-R) |
+
+⚠️ **Important**: To use XunZi-R, you must also download its base model XunZi-R-BioPre. After downloading, edit `models/XunZi-R/adapter_config.json` and update the field:
+```json
+"base_model_name_or_path": "/path/to/XunZi-R-BioPre"
+```
+
+This ensures the LoRA adapter (`XunZi-R`) can correctly load the pretrained weights.
+
 ## 🚀 Quick Start
 
 ### 1. Installation
@@ -93,6 +109,9 @@ huggingface-cli download H2dddhxh/XunZi-R --local-dir ./models/XunZi-R
 
 # Download demo data
 huggingface-cli download H2dddhxh/XunZi graph_data.pth --local-dir ./demo_data
+
+# Update adapter config
+# Edit models/XunZi-R/adapter_config.json to point to XunZi-R-BioPre
 ```
 
 ### 3. Run Demo
@@ -108,7 +127,7 @@ python demo_xunzi.py \
 
 ### Data Preprocessing
 
-Process raw biomedical literature (240,000 articles and gene-disease annotations):
+Process raw biomedical literature (240,000 articles with gene-disease annotations):
 ```bash
 python scripts/preprocess_data.py \
   --input-path /path/to/raw/articles.json \
@@ -119,13 +138,23 @@ python scripts/preprocess_data.py \
   --val-ratio 0.05
 ```
 
-### Continual Pre-training
-
-Train XunZi-R on biomedical corpus using LoRA:
-```bash
-python scripts/train.py \
-  --config configs/training_config.yaml \
-  --use-wandb
+Expected input format:
+```json
+{
+  "pmid": "12345678",
+  "title": "Article title",
+  "abstract": "Article abstract",
+  "genes": ["BRCA1", "TP53"],
+  "diseases": ["breast cancer"],
+  "associations": [
+    {
+      "gene": "BRCA1",
+      "disease": "breast cancer",
+      "relation": "associated_with",
+      "confidence": "high"
+    }
+  ]
+}
 ```
 
 
@@ -135,11 +164,13 @@ python scripts/train.py \
 - Graph Convolutional Networks for gene-gene interactions
 - Integration of 600TB+ multi-omics data
 - Cross-validation with DisGeNET and CTD databases
+- 5-fold stratified cross-validation
 
 ### XunZi-R: Mechanistic Reasoning
 - Fine-tuned Mistral-7B on 24M publications
 - Specialized for biomedical entity recognition
 - Generates mechanistic hypotheses for gene-disease associations
+- Context-aware gene-disease relationship extraction
 
 
 ## 📝 Citation
@@ -147,7 +178,7 @@ python scripts/train.py \
 If you use XunZi in your research, please cite:
 ```bibtex
 @article{huang2024xunzi,
-  title={XunZi, a AI biologist, reveals novel disease-modifying targets},
+  title={XunZi, an AI biologist, reveals novel disease-modifying targets },
   author={Huang, Xinhe et al.},
   journal={bioRxiv},
   year={2024}
@@ -169,3 +200,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For questions and support:
 - Open an issue on GitHub
 - Email: huangxinhe@hust.edu.cn
+
