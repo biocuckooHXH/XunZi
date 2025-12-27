@@ -1,0 +1,41 @@
+model:
+  name: "mistralai/Mistral-7B-Instruct-v0.1"
+  use_lora: true
+  torch_dtype: "float16"
+  lora_config:
+    r: 32
+    lora_alpha: 64
+    lora_dropout: 0.05
+    bias: "none"
+    target_modules:
+      - "q_proj"
+      - "k_proj"
+      - "v_proj"
+      - "o_proj"
+      - "gate_proj"
+      - "up_proj"
+      - "down_proj"
+
+data:
+  train_path: "data/processed/train.jsonl"
+  val_path: "data/processed/val.jsonl"
+  max_length: 2048
+
+training:
+  output_dir: "outputs/xunzi_r_cpt_mistral7b"
+  num_epochs: 1.5
+  batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 2e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  mixed_precision: "fp16"
+  num_workers: 4
+  save_every: 1
+  log_every: 10
+  wandb_project: "xunzi-r-cpt"
+  run_name: "mistral7b-biomedical-cpt"
+  beta1: 0.9
+  beta2: 0.999
+  eps: 1e-8
