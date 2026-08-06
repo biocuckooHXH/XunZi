@@ -1,0 +1,37 @@
+# XunZi requirements.txt
+# Python 3.9 recommended (conda create -n xunzi python=3.9)
+#
+# IMPORTANT: install PyTorch FIRST, matching your CUDA version, then run
+#   pip install -r requirements.txt
+# e.g. for CUDA 11.8:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu118
+
+# ---- Core deep learning ----
+torch>=2.0.0
+torch-geometric>=2.3.0
+
+# ---- HuggingFace / LLM (Mistral-7B + LoRA) ----
+transformers>=4.35.0
+accelerate>=0.24.0
+peft>=0.6.0
+huggingface_hub>=0.19.0
+safetensors>=0.4.0
+sentencepiece>=0.1.99   # required by the Mistral tokenizer
+protobuf>=3.20          # required by the Mistral tokenizer
+
+# ---- Data / utilities ----
+pandas>=1.5.0
+numpy>=1.24.0
+pyyaml>=6.0
+tqdm>=4.65.0
+torchinfo>=1.8.0
+
+# ---- Evaluation metrics ----
+scikit-learn>=1.3.0
+nltk>=3.8
+rouge-score>=0.1.2
+bert-score>=0.3.13
+
+# ---- Plotting ----
+matplotlib>=3.7.0
+seaborn>=0.12.0
