@@ -1,7 +1,7 @@
 {
-    "learning_rate": 0.0001,
+    "learning_rate": 0.001,
     "weight_decay": 2e-05,
-    "epochs": 600,
+    "epochs": 2000,
     "step_size": 50,
     "gamma": 0.9
 }
