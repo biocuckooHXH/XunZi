@@ -118,6 +118,10 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+> **PyTorch / GPU note**: install PyTorch first, matching your CUDA environment (see `requirements.txt`).
+> For Blackwell GPUs (RTX 50 series, sm_120), use the CUDA 12.8 build with torch >= 2.7:
+> `pip install torch --index-url https://download.pytorch.org/whl/cu128`
+
 ---
 
 ## 2. Download XunZi-R

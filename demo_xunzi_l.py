@@ -72,14 +72,24 @@ def parse_args():
     p = argparse.ArgumentParser(description="XunZi-L demo inference")
     p.add_argument("--graph_data", type=str, required=True, help="Path to graph_data .pth")
     p.add_argument("--checkpoint", type=str, required=True, help="Path to finetuned model checkpoint (.pth)")
-    p.add_argument("--input_dim", type=int, default=64)
+    p.add_argument("--input_dim", type=int, default=None,
+                   help="Gene feature dim; auto-inferred from the checkpoint if omitted")
     p.add_argument("--hidden_dim1", type=int, default=128)
     p.add_argument("--hidden_dim2", type=int, default=32)
     p.add_argument("--output_dim", type=int, default=2)
-    p.add_argument("--goid_input_dim", type=int, default=4096)
+    p.add_argument("--goid_input_dim", type=int, default=None,
+                   help="GO feature dim; auto-inferred from the checkpoint if omitted")
     p.add_argument("--dropout", type=float, default=0.2)
     p.add_argument("--output_csv", type=str, default="demo_prediction.csv")
     return p.parse_args()
+
+
+def infer_dims_from_ckpt(ckpt_path: str):
+    """Infer (input_dim, goid_input_dim) from checkpoint weights (same as demo_xunzi.py)."""
+    state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    in_dim = state["conv1.lin.weight"].shape[1] if "conv1.lin.weight" in state else None
+    goid_in = state["goid_dnn.0.weight"].shape[1] if "goid_dnn.0.weight" in state else None
+    return in_dim, goid_in
 
 
 @torch.inference_mode()
@@ -87,8 +97,22 @@ def main():
     args = parse_args()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # infer feature dims from the checkpoint when not given explicitly
+    if args.input_dim is None or args.goid_input_dim is None:
+        in_dim, goid_in = infer_dims_from_ckpt(args.checkpoint)
+        if args.input_dim is None:
+            if in_dim is None:
+                raise ValueError("Cannot infer input_dim from checkpoint; pass --input_dim explicitly.")
+            args.input_dim = in_dim
+            print(f"[XunZi-L] Inferred input_dim from ckpt: {args.input_dim}")
+        if args.goid_input_dim is None:
+            if goid_in is None:
+                raise ValueError("Cannot infer goid_input_dim from checkpoint; pass --goid_input_dim explicitly.")
+            args.goid_input_dim = goid_in
+            print(f"[XunZi-L] Inferred goid_input_dim from ckpt: {args.goid_input_dim}")
+
     # load data
-    graph_data = torch.load(args.graph_data, map_location=device)
+    graph_data = torch.load(args.graph_data, map_location=device, weights_only=False)
     graph_data = graph_data.to(device)
 
     # init model & load weights
@@ -101,7 +125,7 @@ def main():
         dropout=args.dropout
     ).to(device)
 
-    state = torch.load(args.checkpoint, map_location=device)
+    state = torch.load(args.checkpoint, map_location=device, weights_only=False)
     model.load_state_dict(state)
     model.eval()
 
