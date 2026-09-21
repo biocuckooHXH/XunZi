@@ -5,6 +5,10 @@
 #   pip install -r requirements.txt
 # e.g. for CUDA 11.8:
 #   pip install torch --index-url https://download.pytorch.org/whl/cu118
+# For Blackwell GPUs (RTX 50 series, sm_120) use the CUDA 12.8 build (torch >= 2.7):
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+# NOTE: with torch >= 2.6 torch.load defaults to weights_only=True; the demo and
+# training scripts in this repo already pass weights_only=False explicitly.
 
 # ---- Core deep learning ----
 torch>=2.0.0

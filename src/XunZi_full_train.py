@@ -20,7 +20,7 @@ def one_hot_encode(labels, num_classes=2, device='cpu'):
 
 def load_data(loaded_data_path, label_path, llm_path, device):
     """Load and process data."""
-    loaded_data = torch.load(loaded_data_path)
+    loaded_data = torch.load(loaded_data_path, weights_only=False)
     labels_df = pd.read_csv(label_path)
     positive_genes = set(labels_df['GeneID'].dropna().apply(lambda x: int(x)))
     all_genes = loaded_data.geneid
@@ -213,7 +213,7 @@ def evaluate_xunzi(args):
 
     # Load the saved model
     model_path = './models/model_fold_1.pth'  # Load a specific fold model
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, weights_only=False))
     model.eval()
 
     # Evaluation

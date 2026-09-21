@@ -68,7 +68,7 @@ def one_hot_encode(labels, num_classes=2):
 
 
 def load_data(loaded_data_path, label_path, allgene_path, columns_to_keep, llm_path):
-    loaded_data = torch.load(loaded_data_path)
+    loaded_data = torch.load(loaded_data_path, weights_only=False)
 
     subset = loaded_data.x[:12816, :]
     mask1 = torch.ones(subset.shape[1], dtype=torch.bool)
@@ -189,7 +189,7 @@ def evaluate_xunzi(args):
 
     # Load the best model
     model_path = './models/fold_1.pth'
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, weights_only=False))
     model.eval()
 
     # Evaluation

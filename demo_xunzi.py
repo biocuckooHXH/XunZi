@@ -45,7 +45,7 @@ def infer_dims_from_ckpt(ckpt_path: str):
     Infer (input_dim, goid_input_dim) from checkpoint weights.
     Falls back to None if keys are missing.
     """
-    state = torch.load(ckpt_path, map_location="cpu")
+    state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     in_dim = None
     goid_in = None
     # GCNConv keeps a Linear as 'conv1.lin.weight' in state_dict for PyG>=2.0
@@ -248,7 +248,7 @@ def run_xunzi_l(args, device):
         args.goid_input_dim = inferred_goid_in
         print(f"[XunZi-L] Inferred goid_input_dim from ckpt: {args.goid_input_dim}")
 
-    graph_data = torch.load(args.graph_data, map_location=device)
+    graph_data = torch.load(args.graph_data, map_location=device, weights_only=False)
     validate_graph_data(graph_data, args.input_dim, args.goid_input_dim)
     graph_data = graph_data.to(device)
 
@@ -261,7 +261,7 @@ def run_xunzi_l(args, device):
         dropout=args.dropout
     ).to(device)
 
-    state = torch.load(args.l_checkpoint, map_location=device)
+    state = torch.load(args.l_checkpoint, map_location=device, weights_only=False)
     # Strict load to avoid silent mismatches
     model.load_state_dict(state, strict=True)
     model.eval()
